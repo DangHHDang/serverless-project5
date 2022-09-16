@@ -7,3 +7,8 @@ export interface TodoItem {
   done: boolean
   attachmentUrl?: string
 }
+
+export interface ResultToDoItem {
+  items : TodoItem[],
+  nextKey: unknown
+}

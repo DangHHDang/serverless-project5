@@ -1,10 +1,13 @@
 import * as AWS from 'aws-sdk'
 import * as AWSXRay from 'aws-xray-sdk'
 import { DocumentClient } from 'aws-sdk/clients/dynamodb'
-import { TodoItem } from '../models/TodoItem'
+import { TodoItem,ResultToDoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate';
+import { createLogger } from '../utils/logger'
 
 const XAWS = AWSXRay.captureAWS(AWS)
+const logger = createLogger('Access');
+
 // TODO: Implement the dataLayer logic
 export class TodosAccess {
 
@@ -13,16 +16,25 @@ export class TodosAccess {
         private readonly toDoTable = process.env.TODOS_TABLE) {
     }
 
-    async getTodosForUser(userId: String): Promise<TodoItem[]> {
-        const result = await this.docClient.query({
+    async getTodosForUser(userId: String,limit: number,nextkey:object): Promise<ResultToDoItem> {
+        const params = {
             TableName: this.toDoTable,
-            KeyConditionExpression: 'userId = :userId',
+            Limit: limit,
+            KeyConditionExpression : 'userId = :userId',
             ExpressionAttributeValues: {
                 ':userId': userId
             }
-        }).promise()
+        }
+        if(nextkey != undefined) {
+            params['ExclusiveStartKey'] = nextkey
+        }
+        const result = await this.docClient.query(params).promise()
+        logger.info(result)
         const items = result.Items
-        return items as TodoItem[];
+        return {
+            items: items as TodoItem[],
+            nextKey : result.LastEvaluatedKey
+        }
     }
 
     async createTodosForUser(todoItem: TodoItem): Promise<TodoItem> {

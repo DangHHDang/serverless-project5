@@ -11,12 +11,13 @@ import {
   Icon,
   Input,
   Image,
-  Loader
+  Loader,
+  Pagination
 } from 'semantic-ui-react'
 
 import { createTodo, deleteTodo, getTodos, patchTodo } from '../api/todos-api'
 import Auth from '../auth/Auth'
-import { Todo } from '../types/Todo'
+import { Todo, ResultTodo } from '../types/Todo'
 
 interface TodosProps {
   auth: Auth
@@ -26,14 +27,18 @@ interface TodosProps {
 interface TodosState {
   todos: Todo[]
   newTodoName: string
-  loadingTodos: boolean
+  loadingTodos: boolean,
+  limit: number,
+  nextKey: string
 }
 
 export class Todos extends React.PureComponent<TodosProps, TodosState> {
   state: TodosState = {
     todos: [],
     newTodoName: '',
-    loadingTodos: true
+    loadingTodos: true,
+    limit: 5,
+    nextKey: ''
   }
 
   handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,6 +47,19 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
 
   onEditButtonClick = (todoId: string) => {
     this.props.history.push(`/todos/${todoId}/edit`)
+  }
+
+  onNextClick = async () => {
+    this.setState({
+      loadingTodos : true
+    })
+    const result = await getTodos(this.props.auth.getIdToken(),this.state.nextKey)
+      this.setState({
+        todos: result.items,
+        nextKey: result.nextKey,
+        loadingTodos: false
+      })
+      console.log(this.state.nextKey)
   }
 
   onTodoCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
@@ -91,11 +109,14 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
 
   async componentDidMount() {
     try {
-      const todos = await getTodos(this.props.auth.getIdToken())
+      console.log(this.state.nextKey)
+      const result = await getTodos(this.props.auth.getIdToken(),this.state.nextKey)
       this.setState({
-        todos,
+        todos: result.items,
+        nextKey: result.nextKey,
         loadingTodos: false
       })
+      console.log(this.state)
     } catch (e) {
       alert(`Failed to fetch todos: ${(e as Error).message}`)
     }
@@ -109,7 +130,35 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
         {this.renderCreateTodoInput()}
 
         {this.renderTodos()}
+        {this.renderPagination()}
       </div>
+    )
+  }
+
+
+  paginationExamplePagination = () => (
+    <Pagination defaultActivePage={5} totalPages={10} />
+  )
+
+  renderPagination() {
+    return (
+      <Grid.Row>
+        <Grid.Column width={16}>
+        {
+        (this.state.nextKey == '' || this.state.nextKey == null) 
+        ? <div></div> : <Button icon color='blue' labelPosition='right'
+        onClick={() => this.onNextClick()}
+        >
+          Next
+          <Icon name='caret right' />
+        </Button>
+        
+        }
+        </Grid.Column>
+        <Grid.Column width={16}>
+          <Divider />
+        </Grid.Column>
+      </Grid.Row>
     )
   }
 

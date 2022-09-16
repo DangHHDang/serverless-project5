@@ -1,4 +1,4 @@
-import { TodoItem } from '../models/TodoItem';
+import { TodoItem, ResultToDoItem } from '../models/TodoItem';
 // import { AttachmentUtils } from './attachmentUtils';
 import { CreateTodoRequest } from '../requests/CreateTodoRequest'
 import { UpdateTodoRequest } from '../requests/UpdateTodoRequest'
@@ -15,8 +15,8 @@ const s3 = new XAWS.S3({
 })
 const urlExpiration = process.env.SIGNED_URL_EXPIRATION
 // TODO: Implement businessLogic
-export const getTodosForUser = async (userId: String): Promise<TodoItem[]> => {
-    return todosAccess.getTodosForUser(userId);
+export const getTodosForUser = async (userId: String,limit: number,nextkey: object): Promise<ResultToDoItem> => {
+    return todosAccess.getTodosForUser(userId, limit,nextkey);
 }
 
 export async function createTodo(
@@ -61,3 +61,66 @@ function getUploadUrl(imageId: string) {
         Expires: Number(urlExpiration)
     })
 }
+
+
+/**
+ * Get value of the limit parameter.
+ *
+ * @param {Object} event HTTP event passed to a Lambda function
+ *
+ * @returns {number} parsed "limit" parameter
+*/
+export async function parseLimitParameter(event) {
+    const limitStr = getQueryParameter(event, 'limit')
+    if (!limitStr) {
+        return undefined
+    }
+
+    const limit = parseInt(limitStr, 10)
+    if (limit <= 0) {
+        throw new Error('Limit should be positive')
+    }
+
+    return limit
+}
+
+/**
+ * Get value of the limit parameter.
+ *
+ * @param {Object} event HTTP event passed to a Lambda function
+ *
+ * @returns {Object} parsed "nextKey" parameter
+ */
+export async function parseNextKeyParameter(event) {
+    const nextKeyStr = getQueryParameter(event, 'nextKey');
+    if (!nextKeyStr) {
+        return undefined;
+    }
+    const uriDecoded = decodeURIComponent(nextKeyStr)
+    return JSON.parse(uriDecoded);
+}
+
+/**
+ * Get a query parameter or return "undefined"
+ *
+ * @param {Object} event HTTP event passed to a Lambda function
+ * @param {string} name a name of a query parameter to return
+ *
+ * @returns {string} a value of a query parameter value or "undefined" if a parameter is not defined
+ */
+function getQueryParameter(event, name) {
+    const queryParams = event.queryStringParameters
+    if (!queryParams) {
+        return undefined
+    }
+
+    return queryParams[name]
+}
+
+export function encodeNextKey(lastEvaluatedKey) {
+    if (!lastEvaluatedKey) {
+      return null
+    }
+  
+    return encodeURIComponent(JSON.stringify(lastEvaluatedKey))
+  }

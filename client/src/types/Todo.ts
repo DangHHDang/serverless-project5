@@ -6,3 +6,8 @@ export interface Todo {
   done: boolean
   attachmentUrl?: string
 }
+
+export interface ResultTodo {
+  items : Todo[],
+  nextKey : string
+}
